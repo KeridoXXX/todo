@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>To-do app</title>
+  </head>
+  <style>
+    * {
+      margin: 0;
+    }
+
+    .app_wrap {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem;
+    }
+
+    .header img {
+      max-width: 2.5rem;
+    }
+
+    h1 {
+      font-family: monospace;
+    }
+
+    .app_cont {
+      display: grid;
+      grid-template-columns: 2fr 1fr;
+      grid-template-rows: 4fr 1fr;
+      width: 70vw;
+      height: 70vh;
+    }
+    .active_cont {
+      border: 3px solid orange;
+      padding: 1rem;
+      grid-row: 1/5;
+      overflow: scroll;
+    }
+
+    .active_cont {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .completed_cont {
+      border: 3px solid purple;
+      padding: 1rem;
+      overflow: scroll;
+    }
+
+    .completed_cont {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+    .exp_cont {
+      border: 3px solid blueviolet;
+      grid-column: 2/3;
+      font-family: monospace;
+      padding: 1rem;
+    }
+
+    .exp_cont p {
+      font-family: monospace;
+      font-size: 1rem;
+    }
+
+    .quest_template {
+      justify-content: space-between;
+      margin-top: 0.4rem;
+      margin-bottom: 0.4rem;
+      padding: 0.4rem;
+      font-family: monospace;
+    }
+
+    .active {
+      border: gold 3px solid;
+    }
+    .active button {
+      cursor: url(wowting/complete.png), auto;
+      border: black solid 2px;
+      color: white;
+      background-color: orangered;
+      font-family: monospace;
+      font-size: 1rem;
+    }
+
+    .completed {
+      border: orange 3px solid;
+    }
+    .completed button {
+      cursor: url(wowting/activate.png), auto;
+      border: black solid 2px;
+      color: white;
+      background-color: orangered;
+      font-family: monospace;
+      font-size: 1rem;
+    }
+
+    .delete_button {
+      cursor: pointer !important;
+    }
+
+    .center {
+      text-align: center;
+    }
+
+    .inputstyle {
+      font-family: monospace;
+      font-size: 1rem;
+      margin: 0.2rem;
+    }
+  </style>
+  <body>
+    <div class="quest_template" style="display: none">
+      <button class="complete_button">Complete</button>
+      <div>
+        <p class="quest_name center">Quest Name</p>
+        <input class="inputstyle" type="text" placeholder="Quest name" />
+      </div>
+      <div>
+        <p class="description center">Description</p>
+        <input class="inputstyle" type="text" placeholder="Description" />
+      </div>
+      <div>
+        <p class="experience center">Exp</p>
+        <input class="inputstyle" type="text" placeholder="Exp value" />
+      </div>
+      <button class="delete_button">X</button>
+    </div>
+    <div class="app_wrap">
+      <div class="app_cont">
+        <div class="active_cont">
+          <div class="header">
+            <img src="wowting/active.png" alt="" />
+            <h1>Active quests:</h1>
+            <button class="create_quest_btn">Create Quest</button>
+          </div>
+        </div>
+        <div class="completed_cont">
+          <div class="header">
+            <img src="wowting/completed.png" alt="" />
+            <h1>Completed quests:</h1>
+            <div></div>
+          </div>
+        </div>
+        <div class="exp_cont">
+          <div>
+            <h2>Potential exp:</h2>
+            <p class="pot_exp_disp"></p>
+          </div>
+          <div>
+            <h2>Current exp:</h2>
+            <p class="exp_disp"></p>
+          </div>
+          <div>
+            <h2>Level:</h2>
+            <p class="currentlvl"></p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+  <script>
+    const saveInterval = setInterval(saveQuests, 5000); // save every 5 seconds
+    const expInterval = setInterval(calculateTotalExp, 5000); // exp every 5 seconds
+    const potExpInterval = setInterval(calculatePotentialExp, 5000); // exp every 5 seconds
+
+    //template for cloning
+    const questTemplate = document.querySelector(".quest_template");
+    // btn and eventlistener for creating a new quest
+    const createBtn = document.querySelector(".create_quest_btn");
+    createBtn.addEventListener("click", createQuest);
+
+    // starting point for unique ID generation, will adapt depending on the amount of saved quests
+    let uniqueId = localStorage.length;
+
+    // containers for appending quests depending on thier status active/completed
+    const qca = document.querySelector(".active_cont"); // QuestContainerActive
+    const qcc = document.querySelector(".completed_cont"); // QuestContainerCompleted
+
+    // conmtainers for experience points
+    const expContainer = document.querySelector(".exp_cont");
+    const expDisplay = document.querySelector(".exp_disp");
+    const potExpDisplay = document.querySelector(".pot_exp_disp");
+
+    // This will fetch/initialize the localStorage stuff
+    window.addEventListener("load", initQuests);
+
+    function initQuests() {
+      // not quite sure about this...
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        const value = localStorage.getItem(key);
+        //console.log(value);
+
+        const questData = JSON.parse(value);
+        //console.log(questData);
+
+        recreateQuest(questData);
+      }
+    }
+
+    function recreateQuest(questData) {
+      // Clone the .quest_template
+      const newQuest = questTemplate.cloneNode(true);
+
+      // setting up btns
+      let completeBtn = newQuest.querySelector(".complete_button");
+      const deleteBtn = newQuest.querySelector(".delete_button");
+
+      // Set properties and status based on questData (i had help finding they way to target these)
+      const questNameInput = newQuest.querySelector(
+        'input[placeholder="Quest name"]'
+      );
+      const questDescriptionInput = newQuest.querySelector(
+        'input[placeholder="Description"]'
+      );
+      const questExpInput = newQuest.querySelector(
+        'input[placeholder="Exp value"]'
+      );
+
+      questNameInput.value = questData.name;
+      questDescriptionInput.value = questData.desc;
+      questExpInput.value = questData.exp;
+      newQuest.id = questData.id;
+      newQuest.classList.add("quest");
+
+      // Add the appropriate class and other status related business
+      if (questData.status === "active") {
+        newQuest.classList.add("active");
+        qca.appendChild(newQuest);
+      } else {
+        newQuest.classList.add("completed");
+        qcc.appendChild(newQuest);
+        completeBtn.textContent = "Activate";
+
+        // hide desc and exp
+        const descriptionInput = newQuest.querySelector(
+          'input[placeholder="Description"]'
+        );
+        if (descriptionInput) {
+          descriptionInput.style.display = "none";
+        }
+        const descriptionPH = newQuest.querySelector(".description");
+        if (descriptionPH) {
+          descriptionPH.style.display = "none";
+        }
+        const hideExp = newQuest.querySelector(
+          'input[placeholder="Exp value"]'
+        );
+        if (hideExp) {
+          hideExp.style.display = "none";
+        }
+        const hideExpInput = newQuest.querySelector(".experience");
+        if (hideExpInput) {
+          hideExpInput.style.display = "none";
+        }
+      }
+
+      // make it show up on the page (its display none initally)
+      newQuest.style.display = "flex";
+
+      // adding eventlisteners and calling relevant functions
+      deleteBtn.addEventListener("click", () => deleteQuest(newQuest));
+
+      addEventListeners(newQuest);
+      calculateTotalExp();
+      calculatePotentialExp();
+    }
+
+    function calculateTotalExp() {
+      let completedQuests = qcc.querySelectorAll(".completed");
+      let totalExp = 0; // scope? update: correct scope.
+
+      completedQuests.forEach((completedQuest) => {
+        const expInput = completedQuest.querySelector(
+          'input[placeholder="Exp value"]'
+        );
+        if (expInput) {
+          totalExp += parseInt(expInput.value) || 0;
+        }
+      });
+
+      console.log("TOTAL EXP GAINED: " + totalExp);
+      expDisplay.textContent = totalExp;
+      calculatePotentialExp();
+    }
+
+    function calculatePotentialExp() {
+      let activeQuests = qca.querySelectorAll(".active");
+      let potentialExp = 0;
+
+      activeQuests.forEach((activeQuest) => {
+        const potExpInput = activeQuest.querySelector(
+          'input[placeholder="Exp value"]'
+        );
+        if (potExpInput) {
+          potentialExp += parseInt(potExpInput.value) || 0;
+        }
+      });
+
+      console.log("TOTAL EXP AVAILABLE: " + potentialExp);
+      potExpDisplay.textContent = potentialExp;
+    }
+
+    function createQuest() {
+      // clone the template
+      const newQuest = questTemplate.cloneNode(true);
+
+      // give it an ID that increments by 1 each time
+      newQuest.id = ++uniqueId;
+
+      // make it show up (display none before)
+      newQuest.style.display = "flex";
+
+      // define the added quest as an active quest and just a quest
+      newQuest.classList.add("active");
+      newQuest.classList.add("quest"); // is used for localStorage later
+
+      // declaring my btn as a variable
+      const completeBtn = newQuest.querySelector(".complete_button"); // where should i scope this?
+      const deleteBtn = newQuest.querySelector(".delete_button");
+      deleteBtn.addEventListener("click", () => deleteQuest(newQuest));
+
+      // calls the function i use to add eventlisteners
+      addEventListeners(newQuest);
+
+      // append this new quest to the DOM
+      qca.appendChild(newQuest);
+
+      // save for good measure
+      saveQuests();
+    }
+
+    function saveQuests() {
+      const allQuests = document.querySelectorAll(".quest");
+      // motherfucking array to store the objects
+      const questDataArray = [];
+
+      //console.log(allQuests); nodelist med quests
+
+      // loop through nodelist and pick up the values turn em into an object
+      allQuests.forEach((quest) => {
+        const questId = quest.id;
+        const questName = quest.querySelector(
+          'input[placeholder="Quest name"]'
+        ).value;
+        const questDescription = quest.querySelector(
+          'input[placeholder="Description"]'
+        ).value;
+        const questExp = quest.querySelector(
+          'input[placeholder="Exp value"]'
+        ).value;
+        let questStatus = "";
+        if (quest.classList.contains("active")) {
+          questStatus = "active";
+        } else {
+          questStatus = "completed";
+        }
+
+        // test
+        // console.log(questId);
+        // console.log(questName);
+        // console.log(questDescription);
+        // console.log(questExp);
+        // console.log(questStatus);
+
+        // said object i will turn into JSON and store in localStorage
+        const questData = {
+          id: questId,
+          name: questName,
+          desc: questDescription,
+          exp: questExp,
+          status: questStatus,
+        };
+
+        // JSONification and storing of said object
+        const questDataJSON = JSON.stringify(questData);
+        console.log(questDataJSON);
+        localStorage.setItem(questId, questDataJSON);
+      });
+    }
+
+    // Add an eventlistner that i had MAJOR issues getting to work before this solution
+    function addEventListeners(newQuest) {
+      let completeBtn = newQuest.querySelector(".complete_button");
+      if (completeBtn) {
+        completeBtn.addEventListener("click", () =>
+          toggleQuestStatus(newQuest)
+        );
+      }
+    }
+    // determines whether the completeQuest function or the activateQuest function needs to run depending on which class the specified quest is currently attributed
+    function toggleQuestStatus(newQuest) {
+      if (newQuest.classList.contains("active")) {
+        completeQuest(newQuest);
+      } else if (newQuest.classList.contains("completed")) {
+        activateQuest(newQuest);
+      }
+    }
+
+    function completeQuest(newQuest) {
+      // Log to see if the function runs
+      console.log("COMPLETING QUEST " + newQuest.id);
+
+      // define the btn in variable scope
+      let completeBtn = newQuest.querySelector(".complete_button");
+
+      // Here im going to switch out the classes
+      newQuest.classList.remove("active");
+      newQuest.classList.add("completed");
+
+      // APPEND to the completed side
+      qcc.appendChild(newQuest);
+
+      // SWITCH the btn text
+      if (completeBtn) {
+        completeBtn.textContent = "Activate";
+      }
+
+      // Hide the description and exp (also used in recreateQuest function)
+      const descriptionInput = newQuest.querySelector(
+        'input[placeholder="Description"]'
+      );
+      if (descriptionInput) {
+        descriptionInput.style.display = "none";
+      }
+      const descriptionPH = newQuest.querySelector(".description");
+      if (descriptionPH) {
+        descriptionPH.style.display = "none";
+      }
+      const hideExp = newQuest.querySelector('input[placeholder="Exp value"]');
+      if (hideExp) {
+        hideExp.style.display = "none";
+      }
+      const hideExpInput = newQuest.querySelector(".experience");
+      if (hideExpInput) {
+        hideExpInput.style.display = "none";
+      }
+
+      // calculate that exp
+      calculateTotalExp();
+      //save for good measure
+      saveQuests();
+    }
+
+    function activateQuest(newQuest) {
+      // Log to see if the function runs
+      console.log("ACTIVATING QUEST " + newQuest.id);
+
+      // declaring my btn
+      let completeBtn = newQuest.querySelector(".complete_button");
+
+      // Here im going to switch out the classes
+      newQuest.classList.remove("completed");
+      newQuest.classList.add("active");
+
+      // APPEND to the other side
+      qca.appendChild(newQuest);
+
+      // switch the btn text
+      if (completeBtn) {
+        completeBtn.textContent = "Complete";
+      }
+
+      // SHOW the description and exp again
+      const descriptionInput = newQuest.querySelector(
+        'input[placeholder="Description"]'
+      );
+      if (descriptionInput) {
+        descriptionInput.style.display = "block";
+      }
+      const descriptionPH = newQuest.querySelector(".description");
+      if (descriptionPH) {
+        descriptionPH.style.display = "block";
+      }
+      const hideExp = newQuest.querySelector('input[placeholder="Exp value"]');
+      if (hideExp) {
+        hideExp.style.display = "block";
+      }
+      const hideExpInput = newQuest.querySelector(".experience");
+      if (hideExpInput) {
+        hideExpInput.style.display = "block";
+      }
+
+      // calc that exp
+      calculateTotalExp();
+      // save save save
+      saveQuests();
+    }
+
+    function deleteQuest(newQuest) {
+      console.log("deleteQuest" + newQuest.id);
+      localStorage.removeItem(newQuest.id); // so nice
+      if (newQuest.classList.contains("active")) {
+        qca.removeChild(newQuest);
+      } else {
+        qcc.removeChild(newQuest);
+      }
+      calculateTotalExp();
+      saveQuests();
+    }
+
+    // bonus features
+    // mouseover function to show the full description
+    // custom colors for quests
+    // levels with rewards
+    // BETTER UI!!!!! (sorry)
+  </script>
+</html>
