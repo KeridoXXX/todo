@@ -36,8 +36,8 @@
       display: grid;
       grid-template-columns: 2fr 1fr;
       grid-template-rows: 4fr 1fr;
-      width: 70vw;
-      height: 70vh;
+      width: 80vw;
+      height: 80vh;
     }
     .active_cont {
       border: 3px solid orange;
@@ -181,7 +181,7 @@
     createBtn.addEventListener("click", createQuest);
 
     // starting point for unique ID generation, will adapt depending on the amount of saved quests
-    let uniqueId = localStorage.length;
+    let uniqueId = Date.now();
 
     // containers for appending quests depending on thier status active/completed
     const qca = document.querySelector(".active_cont"); // QuestContainerActive
@@ -200,7 +200,7 @@
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         const value = localStorage.getItem(key);
-        //console.log(value);
+        // console.log("value:", value);
 
         const questData = JSON.parse(value);
         //console.log(questData);
@@ -290,7 +290,7 @@
         }
       });
 
-      console.log("TOTAL EXP GAINED: " + totalExp);
+      //console.log("TOTAL EXP GAINED: " + totalExp);
       expDisplay.textContent = totalExp;
       calculatePotentialExp();
     }
@@ -308,7 +308,7 @@
         }
       });
 
-      console.log("TOTAL EXP AVAILABLE: " + potentialExp);
+      //console.log("TOTAL EXP AVAILABLE: " + potentialExp);
       potExpDisplay.textContent = potentialExp;
     }
 
@@ -318,6 +318,8 @@
 
       // give it an ID that increments by 1 each time
       newQuest.id = ++uniqueId;
+      console.log("create", newQuest.id);
+      console.log("localStorage length", localStorage.length);
 
       // make it show up (display none before)
       newQuest.style.display = "flex";
@@ -385,7 +387,7 @@
 
         // JSONification and storing of said object
         const questDataJSON = JSON.stringify(questData);
-        console.log(questDataJSON);
+        //console.log(questDataJSON);
         localStorage.setItem(questId, questDataJSON);
       });
     }
@@ -506,6 +508,8 @@
       } else {
         qcc.removeChild(newQuest);
       }
+      console.log(localStorage.length);
+
       calculateTotalExp();
       saveQuests();
     }
